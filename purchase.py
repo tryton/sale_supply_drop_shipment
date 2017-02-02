@@ -207,14 +207,20 @@ class PurchaseHandleShipmentException:
             if not set(line.moves) & domain_moves:
                 continue
             if not any(m in to_recreate for m in line.moves):
-                sale_line = request2sline[pline2request[line]]
-                moves.update({m for m in sale_line.moves
-                        if (m.state != 'done'
-                            and m.from_location.type == 'drop')})
-                sales.add(sale_line.sale)
+                # Sale line may not be present in case when purchase order
+                # was created directly (without purchase request)
+                sale_line = pline2request.get(line) and \
+                    request2sline.get(pline2request[line])
+                if sale_line:
+                    moves.update({m for m in sale_line.moves
+                            if (m.state != 'done'
+                                and m.from_location.type == 'drop')})
+                    sales.add(sale_line.sale)
 
         if moves:
             Move.cancel(list(moves))
         if sales:
             Sale.process(list(sales))
+
+        Purchase.process([purchase])
         return 'end'
